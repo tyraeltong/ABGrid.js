@@ -9,9 +9,18 @@ class ABGrid.GridView extends Backbone.View
   initialize: (options) =>
     @columns = options.columns # should be a Backbone.Collection
     @rows = options.rows # should be a Backbone.Collection
+    @rows.bind 'change', @renderRows
+    @rows.bind 'add', @renderRows
+    @rows.bind 'remove', @renderRows
+
     @gridOptions = options.gridOptions
     @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
+
+  renderRows: =>
+    @$('tbody').remove()
+    @bodyView.render()
+    @$('table').append @bodyView.el
 
   render: =>
     $(@el).html @template()
@@ -30,6 +39,9 @@ class ABGrid.HeadView extends Backbone.View
   '
   initialize: (options) =>
     @gridOptions = options.gridOptions
+    @model.bind 'change', @render
+    @model.bind 'add', @render
+    @model.bind 'remove', @render
 
   render: =>
     _.each @model.models, (column) =>
@@ -41,7 +53,11 @@ class ABGrid.BodyView extends Backbone.View
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
+    @model.bind 'add', @render
+    @model.bind 'remove', @render
+    @model.bind 'change', @render
   render: =>
+    $(@el).empty()
     _.each @model.models, (row) =>
       rowView = new ABGrid.RowView({model: row, columns: @columns})
       rowView.render()
