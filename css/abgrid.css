@@ -1,11 +1,19 @@
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 13px;
-  line-height: 18px;
+/*  font-size: 13px;
+  line-height: 18px;*/
   color: #333;
 }
 
 table.abgrid {
+  font-size: 13px;
+  line-height: 18px;
   width: 100%;
   max-width: 100%;
   border-collapse: separate;
@@ -13,6 +21,8 @@ table.abgrid {
   border-width: 0;
   border-spacing: 0;
   background-color: transparent;
+  border: 1px solid #DDD;
+  border-left: 0;
 }
 
 table.abgrid a {
@@ -37,4 +47,27 @@ table.abgrid a {
   text-align: left;
   vertical-align: top;
   border-top: 1px solid #DDD;
+  border-left: 1px solid #DDD;
+}
+
+.abgrid td {
+  white-space: pre-line;
+}
+
+.abgrid caption + thead tr:first-child th, .abgrid caption + tbody tr:first-child th, .abgrid caption + tbody tr:first-child td, .abgrid colgroup + thead tr:first-child th, .abgrid colgroup + tbody tr:first-child th, .abgrid colgroup + tbody tr:first-child td, .abgrid thead:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child td {
+  border-top: 0;
+}
+
+.abgrid tbody tr:nth-child(odd) td, .abgrid tbody tr:nth-child(odd) th {
+  background-color: #F9F9F9;
+}
+
+table.abgrid > tbody > tr.active > td {
+  background-color: #D9EDF7;
+}
+
+table.abgrid > tbody > tr > td.active {
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+  border-color: #4c4c4c;
 }

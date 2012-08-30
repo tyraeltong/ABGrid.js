@@ -37,6 +37,7 @@ class ABGrid.HeadView extends Backbone.View
   template: _.template '
     <th class="abgrid-header"><a class="abgrid-header-link" href="#"><%= name %></a></th>
   '
+
   initialize: (options) =>
     @gridOptions = options.gridOptions
     @model.bind 'change', @render
@@ -69,6 +70,9 @@ class ABGrid.RowView extends Backbone.View
   template: _.template '
     <td><%= value %></td>
   '
+  events:
+    'click td' : 'clickCell'
+
   initialize: (options) =>
     @columns = options.columns
   render: =>
@@ -80,5 +84,11 @@ class ABGrid.RowView extends Backbone.View
     rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
     $(@el).append rowHtml
     @
+
+  clickCell: (e) ->
+    $(@.el).parent().find('tr').removeClass('active')
+    $(@.el).parent().find('td').removeClass('active')
+    $(e.target).addClass('active')
+    $(e.target).parent('tr').addClass('active')
 
 class ABGrid.EditView extends Backbone.View
