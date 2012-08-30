@@ -1,0 +1,40 @@
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  color: #333;
+}
+
+table.abgrid {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: separate;
+  empty-cells: show;
+  border-width: 0;
+  border-spacing: 0;
+  background-color: transparent;
+}
+
+table.abgrid a {
+  color: #333;
+  text-decoration: none;
+}
+
+.abgrid-header {
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: .5em .6em .4em .6em;
+}
+
+.abgrid-header th {
+  vertical-align: bottom;
+}
+
+.abgrid th, .abgrid td {
+  padding: 8px;
+  line-height: 18px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid #DDD;
+}
