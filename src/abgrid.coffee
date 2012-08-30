@@ -60,7 +60,7 @@ class ABGrid.BodyView extends Backbone.View
   render: =>
     $(@el).empty()
     _.each @model.models, (row) =>
-      rowView = new ABGrid.RowView({model: row, columns: @columns})
+      rowView = new ABGrid.RowView({model: row, columns: @columns, gridOptions: @gridOptions})
       rowView.render()
       $(@el).append rowView.el
     @
@@ -75,20 +75,31 @@ class ABGrid.RowView extends Backbone.View
 
   initialize: (options) =>
     @columns = options.columns
+    @gridOptions = options.gridOptions
   render: =>
     rowHtmlArray = []
     _.each @columns.models, (col) =>
       value = @model.get(col.get('field'))
-      # custom formatter here
+
+      # cell formatter here
+      formatter = null
+      if col.get('formatter')
+        formatter = col.get('formatter')
+      else if @gridOptions.formatterFactory
+        formatter = @gridOptions.formatterFactory.getFormatter(col)
+
+      if formatter
+        value = formatter(value, col, @model)
+
       rowHtmlArray.push @template({value: value})
     rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
     $(@el).append rowHtml
-    @
+
 
   clickCell: (e) ->
     $(@.el).parent().find('tr').removeClass('active')
     $(@.el).parent().find('td').removeClass('active')
-    $(e.target).addClass('active')
-    $(e.target).parent('tr').addClass('active')
+    $(e.target).closest('td').addClass('active')
+    $(e.target).closest('tr').addClass('active')
 
 class ABGrid.EditView extends Backbone.View

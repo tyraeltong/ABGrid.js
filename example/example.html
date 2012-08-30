@@ -5,6 +5,7 @@
     <script type="text/javascript" src="../lib/underscore-1.3.3.min.js"></script>
     <script type="text/javascript" src="../lib/backbone-0.9.2.min.js"></script>
     <script type="text/javascript" src="../dist/abgrid.js"></script>
+    <script type="text/javascript" src="../dist/abgrid.formatters.js"></script>
     <link rel="stylesheet" href="../css/abgrid.css">
   </head>
   <body>
@@ -15,8 +16,8 @@
       window.rows = null;
       $(document).ready(function() {
         columns = new Backbone.Collection([
-          {name: 'First Name', field: 'firstName'},
-          {name: 'Last Name', field: 'lastName'}
+          {name: 'First Name', field: 'firstName', type: 'string'},
+          {name: 'Last Name', field: 'lastName', type: 'string'}
         ]);
 
         rows = new Backbone.Collection([
@@ -25,7 +26,10 @@
           {firstName: 'Raymond', lastName: 'Jiang'}
         ]);
 
-        gridView = new ABGrid.GridView({columns: columns, rows: rows});
+        gridOptions = {
+          formatterFactory: new ABGrid.FormatterFactory()
+        };
+        gridView = new ABGrid.GridView({columns: columns, rows: rows, gridOptions: gridOptions});
         gridView.render();
         $('#grid').append($(gridView.el));
       });
