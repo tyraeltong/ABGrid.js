@@ -11,9 +11,20 @@
     <h1>Hello ABGrid.js!</h1>
     <div id='grid'></div>
     <script type="text/javascript">
+      window.columns = null;
+      window.rows = null;
       $(document).ready(function() {
-        var columns = new Backbone.Collection([{name: 'First Name', field: 'firstName'}, {name: 'Last Name', field: 'lastName'}]);
-        var rows = new Backbone.Collection([{firstName: 'tyrael', lastName: 'tong'}])
+        columns = new Backbone.Collection([
+          {name: 'First Name', field: 'firstName'},
+          {name: 'Last Name', field: 'lastName'}
+        ]);
+
+        rows = new Backbone.Collection([
+          {firstName: 'Tyrael', lastName: 'Tong'},
+          {firstName: 'Eric', lastName: 'Yang'},
+          {firstName: 'Raymond', lastName: 'Jiang'}
+        ]);
+
         gridView = new ABGrid.GridView({columns: columns, rows: rows});
         gridView.render();
         $('#grid').append($(gridView.el));
