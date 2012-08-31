@@ -32,10 +32,6 @@ class ABGrid.GridView extends Backbone.View
 
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
-    if @gridOptions.enablePaging || @gridOptions.enableSorting
-      unless @rows instanceof Backbone.QueryCollection
-        throw 'you must use Backbone.QueryCollection for sorting or paging'
-
     @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
 
