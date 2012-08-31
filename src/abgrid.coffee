@@ -8,6 +8,13 @@ class ABGrid.GridView extends Backbone.View
       <thead></thead>
     </table>
     '
+  defaultGridOptions:
+    enableColumnReorder: false
+    enableRowReordering: false
+    enableCellNavigation: true
+    editable: true
+    enableAddRow: false
+    enableDeleteRow: false
   initialize: (options) =>
     @columns = options.columns # should be a Backbone.Collection
     @rows = options.rows # should be a Backbone.Collection
@@ -15,24 +22,27 @@ class ABGrid.GridView extends Backbone.View
     @rows.bind 'add', @onRowAdded
     @rows.bind 'remove', @onRowRemoved
 
-    @gridOptions = options.gridOptions
+    @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
+
     @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
 
   onRowRemoved: (e) =>
     id = "r" + e.cid
-    @$('tr#' + id).remove()
+    elem = @$('tr#' + id)
+    elem.fadeOut()
 
   onRowAdded: (e) =>
     gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions}
     gridRow.render()
-    @$('tbody').append gridRow.el
+    @$('tbody').append $(gridRow.el).hide()
+    $(gridRow.el).fadeIn()
 
   onRowChanged: (e) =>
     id = "r" + e.cid
     gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions}
     @$('tr#' + id).replaceWith gridRow.render().el
-
+    @$('tr#' + id).effect('highlight', {color: 'yellow'}, 500)
   render: =>
     $(@el).html @template()
 
@@ -65,9 +75,6 @@ class ABGrid.BodyView extends Backbone.View
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
-    @model.bind 'add', @render
-    @model.bind 'remove', @render
-    @model.bind 'change', @render
   render: =>
     $(@el).empty()
     _.each @model.models, (row) =>
