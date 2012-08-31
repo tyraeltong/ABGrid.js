@@ -28,17 +28,13 @@ table.abgrid {
 table.abgrid a {
   color: #333;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .abgrid-header {
   text-align: left;
   white-space: nowrap;
   text-overflow: ellipsis;
-  padding: .5em .6em .4em .6em;
-}
-
-.abgrid-header th {
-  vertical-align: bottom;
 }
 
 .abgrid th, .abgrid td {
@@ -52,6 +48,20 @@ table.abgrid a {
 
 .abgrid td {
   white-space: pre-line;
+}
+
+th.abgrid-header {
+  vertical-align: bottom;
+}
+
+th.abgrid-header a {
+  display: block;
+  margin: -8px;
+  padding: 8px;
+}
+
+th.abgrid-header a i {
+  margin-left: 5px;
 }
 
 .abgrid caption + thead tr:first-child th, .abgrid caption + tbody tr:first-child th, .abgrid caption + tbody tr:first-child td, .abgrid colgroup + thead tr:first-child th, .abgrid colgroup + tbody tr:first-child th, .abgrid colgroup + tbody tr:first-child td, .abgrid thead:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child td {
