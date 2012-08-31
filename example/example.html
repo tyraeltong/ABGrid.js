@@ -31,7 +31,8 @@
 
         gridOptions = {
           editable: true,
-          formatterFactory: new ABGrid.FormatterFactory()
+          formatterFactory: new ABGrid.FormatterFactory(),
+          editorFactory: ABGrid.Editors.getEditor
         };
         gridView = new ABGrid.GridView({columns: columns, rows: rows, gridOptions: gridOptions});
         gridView.render();

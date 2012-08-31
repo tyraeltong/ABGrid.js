@@ -1,5 +1,10 @@
 window.ABGrid.Editors ||= {}
 
+ABGrid.Editors.getEditor = (columnDef) ->
+  switch columnDef.get('type')
+    when 'string'
+      return ABGrid.Editors.TextEditor
+
 class ABGrid.Editors.CommonEditor
   constructor: (args) ->
     @input = null
