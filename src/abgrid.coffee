@@ -10,7 +10,7 @@ class ABGrid.GridView extends Backbone.View
     '
 
   events:
-    'click table.abgrid' : 'focusOnTable'
+#    'click table.abgrid' : 'focusOnTable'
     'keydown #focusSink' : 'handleKeypress'
     'focusout table.abgrid' : "onFocusOutFromGrid"
   defaultGridOptions:
@@ -70,10 +70,11 @@ class ABGrid.GridView extends Backbone.View
     @
 
   onFocusOutFromGrid: (e) =>
-    @commitCurrentEdit()
+    #@commitCurrentEdit()
 
   focusOnTable: (e) =>
     unless @activeEditor
+      console.log document.activeElement
       @$('#focusSink')[0].focus()
       console.log '#focusOnTable'
   setupActiveRowColumnData: =>
@@ -85,6 +86,7 @@ class ABGrid.GridView extends Backbone.View
     @rowCount = tbody.children().length
     @colCount = @tr.children().length
   handleKeypress: (e) =>
+    console.log "GridView#handleKeypress"
     handled = e.isImmediatePropagationStopped()
 
     if (!handled)
@@ -151,6 +153,7 @@ class ABGrid.GridView extends Backbone.View
       @td.append $(@previousTdHtml)
       delete @activeEditor
       @activeEditor = null
+      @tr.data('view').editing = false
       @focusOnTable()
 
   commitCurrentEdit: =>
@@ -163,6 +166,8 @@ class ABGrid.GridView extends Backbone.View
         @activeEditor.row.set(@activeEditor.column.get('field'), value)
         delete @activeEditor
         @activeEditor = null
+        if @tr.data('view')
+          @tr.data('view').editing = false
         @focusOnTable()
 
   handleEditable: =>
@@ -175,10 +180,11 @@ class ABGrid.GridView extends Backbone.View
       @previousTdHtml = @td.html()
       @td.empty()
       @td.append @activeEditor.el
-      $(@activeEditor.el).select()
+      @tr.data('view').editing = true
+      $(@activeEditor.focusElement()).select()
 
   getEditor: (column, row) =>
-    editView = new ABGrid.EditView {column: column, row: row, parent: @}
+    editView = new ABGrid.Editors.TextAreaEditor {column: column, row: row, parent: @}
     editView.render()
     editView
 
@@ -287,6 +293,7 @@ class ABGrid.RowView extends Backbone.View
     @columns = options.columns
     @gridOptions = options.gridOptions
     @parent = options.parent
+    @editing = false
   render: =>
     rowHtmlArray = []
     width = (100/@columns.models.length)+'%'
@@ -308,50 +315,22 @@ class ABGrid.RowView extends Backbone.View
     rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
     $(@el).append rowHtml
     $(@el).attr('id', "r" + @model.cid)
+    $(@el).data('view', @)
     @
   clickCell: (e) ->
-    @parent.commitCurrentEdit()
-    $(@.el).parent().find('tr').removeClass('active')
-    $(@.el).parent().find('td').removeClass('active')
-    $(e.target).closest('td').addClass('active')
-    $(e.target).closest('tr').addClass('active')
+    unless @editing
+      @parent.focusOnTable(e)
+      @parent.commitCurrentEdit()
+      $(@.el).parent().find('tr').removeClass('active')
+      $(@.el).parent().find('td').removeClass('active')
+      $(e.target).closest('td').addClass('active')
+      $(e.target).closest('tr').addClass('active')
 
   onDblClickCell: (e) ->
-    $(@.el).parent().find('tr').removeClass('active')
-    $(@.el).parent().find('td').removeClass('active')
-    $(e.target).closest('td').addClass('active')
-    $(e.target).closest('tr').addClass('active')
-    @parent.setupActiveRowColumnData()
-    @parent.handleEditable()
-  getEditor: (column) ->
-
-class ABGrid.EditView extends Backbone.View
-  tagName: 'input'
-  className: 'ab-input ab-textbox'
-  events:
-    'keydown': 'handleKeyDown'
-
-  # handleKeyDown
-  #   when the editor is active, it'll get all the key press event
-  #   We don't need to do anything special except for:
-  #     - esc key pressed : this shall inform the parent to remove the editor
-  #     - enter key pressed: this shall first set the value back to the model and then inform the parent to remove the editor
-  #     - tab key pressed: this is the same with enter key pressed plus inform parent move to next
-  handleKeyDown: (e) =>
-    handled = e.isImmediatePropagationStopped()
-    if !handled
-      if !e.shiftKey && !e.altKey && !e.ctrlKey
-        if e.which == 27 || e.which == 9 || e.which == 13
-          @parent.handleKeypress e
-      else if e.which == 9 && e.shiftKey && !e.ctrlKey && !e.altKey
-        @parent.handleKeypress e
-  initialize: (options) =>
-    @column = options.column
-    @row = options.row
-    @parent = options.parent
-
-  render: =>
-    $(@el).val(@row.get(@column.get('field')))
-    @
-  serializeValue: =>
-    $(@el).val()
+    unless @editing
+      $(@.el).parent().find('tr').removeClass('active')
+      $(@.el).parent().find('td').removeClass('active')
+      $(e.target).closest('td').addClass('active')
+      $(e.target).closest('tr').addClass('active')
+      @parent.setupActiveRowColumnData()
+      @parent.handleEditable()
