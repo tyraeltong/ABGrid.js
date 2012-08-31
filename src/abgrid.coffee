@@ -32,7 +32,7 @@ class ABGrid.GridView extends Backbone.View
 
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
-    @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
+    @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
 
   onRowRemoved: (e) =>
@@ -163,10 +163,13 @@ class ABGrid.GridView extends Backbone.View
 class ABGrid.HeadView extends Backbone.View
   tagName: 'tr'
   template: _.template '
-    <th class="abgrid-header"><a class="abgrid-header-link" href="#"><%= name %></a></th>
+    <th class="abgrid-header"><a class="abgrid-header-link" href="#"><%= name %><i class="icon-sort"></i></a></th>
   '
+  events:
+    'click a.abgrid-header-link' : 'sortByHeader'
 
   initialize: (options) =>
+    @rows = options.rows
     @gridOptions = options.gridOptions
     @model.bind 'change', @render
     @model.bind 'add', @render
@@ -177,6 +180,25 @@ class ABGrid.HeadView extends Backbone.View
       # render a column
       $(@el).append @template(column.toJSON())
     @
+
+  sortByHeader: (e) ->
+    i = $(e.target).closest('a').children('i')
+    th = $(e.target).closest('th')
+    tr = $(e.target).closest('tr')
+    thIdx = tr.index(th)
+
+    if i.attr('class') == 'icon-sort'
+      console.log "un-sort"
+      @sortDown()
+    else if i.attr('class') == 'icon-sort-down'
+      console.log "sort-down"
+    else if i.attr('class') == 'icon-sort-down'
+      console.log "sort-up"
+
+  sortDown: =>
+    queryEngine = window.queryEngine
+    result = queryEngine.createCollection(@rows)
+
 class ABGrid.BodyView extends Backbone.View
   tagName: 'tbody'
   initialize: (options) =>
