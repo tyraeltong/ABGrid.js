@@ -241,7 +241,7 @@ class ABGrid.BodyView extends Backbone.View
 class ABGrid.RowView extends Backbone.View
   tagName: 'tr'
   template: _.template '
-    <td><%= value %></td>
+    <td width=<%=width %>><%= value %></td>
   '
   events:
     'click td' : 'clickCell'
@@ -251,6 +251,8 @@ class ABGrid.RowView extends Backbone.View
     @gridOptions = options.gridOptions
   render: =>
     rowHtmlArray = []
+    width = (100/@columns.models.length)+'%'
+
     _.each @columns.models, (col) =>
       value = @model.get(col.get('field'))
 
@@ -264,7 +266,7 @@ class ABGrid.RowView extends Backbone.View
       if formatter
         value = formatter(value, col, @model)
 
-      rowHtmlArray.push @template({value: value})
+      rowHtmlArray.push @template({width: width, value: value})
     rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
     $(@el).append rowHtml
     $(@el).attr('id', "r" + @model.cid)
@@ -279,6 +281,7 @@ class ABGrid.RowView extends Backbone.View
 
 class ABGrid.EditView extends Backbone.View
   tagName: 'input'
+  className: 'ab-input ab-textbox'
   events:
     'keydown': 'handleKeyDown'
   handleKeyDown: (e) =>
@@ -294,5 +297,5 @@ class ABGrid.EditView extends Backbone.View
     @parent = options.parent
 
   render: =>
-    $(@el).css({width: '100%', height: '100%'})
+    # $(@el).css({width: '100%', height: '100%'})
     @
