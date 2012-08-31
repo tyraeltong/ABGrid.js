@@ -28,21 +28,16 @@ table.abgrid {
 table.abgrid a {
   color: #333;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .abgrid-header {
   text-align: left;
   white-space: nowrap;
   text-overflow: ellipsis;
-  padding: .5em .6em .4em .6em;
-}
-
-.abgrid-header th {
-  vertical-align: bottom;
 }
 
 .abgrid th, .abgrid td {
-  padding: 8px;
   line-height: 18px;
   text-align: left;
   vertical-align: top;
@@ -51,7 +46,23 @@ table.abgrid a {
 }
 
 .abgrid td {
+  padding: 6px 8px;
   white-space: pre-line;
+}
+
+th.abgrid-header {
+  padding: 8px 8px;
+  vertical-align: bottom;
+}
+
+th.abgrid-header a {
+  display: block;
+  margin: -6px -8px;
+  padding: 6px 8px;
+}
+
+th.abgrid-header a i {
+  margin-left: 5px;
 }
 
 .abgrid caption + thead tr:first-child th, .abgrid caption + tbody tr:first-child th, .abgrid caption + tbody tr:first-child td, .abgrid colgroup + thead tr:first-child th, .abgrid colgroup + tbody tr:first-child th, .abgrid colgroup + tbody tr:first-child td, .abgrid thead:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child th, .abgrid tbody:first-child tr:first-child td {
@@ -69,5 +80,31 @@ table.abgrid > tbody > tr.active > td {
 table.abgrid > tbody > tr > td.active {
   border-right: 1px solid;
   border-bottom: 1px solid;
-  border-color: #4c4c4c;
+  border-color: rgba(82, 168, 236, 0.8);
 }
+
+.ab-input, .ab-textbox {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+  border: 1px solid #CCC;
+  -webkit-appearance: none;
+  background-color: white;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  border-radius: 4px;
+}
+
+input.ab-textbox {
+  font-size: 13px;
+  display: inline-block;
+  padding: 2px 4px;
+  height: 25px;
+  outline: 0;
+  margin: -4px 0px;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+  

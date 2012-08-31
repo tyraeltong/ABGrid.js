@@ -33,7 +33,7 @@ class ABGrid.GridView extends Backbone.View
     @activeEditor = null
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
-    @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
+    @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
 
   onRowRemoved: (e) =>
@@ -56,8 +56,9 @@ class ABGrid.GridView extends Backbone.View
     @$('tr#' + id).effect('highlight', {color: 'yellow'}, 500)
 
     # restore selection status
-    $(@$('tbody tr')[@trIdx - 1]).addClass('active')
-    $(@$('tr#' + id).children()[@tdIdx - 1]).addClass('active')
+    activeTr = @$('tbody tr').eq(@trIdx)
+    activeTr.addClass('active')
+    activeTr.children().eq(@tdIdx).addClass('active')
     @focusOnTable()
   render: =>
     $(@el).html @template()
@@ -89,11 +90,7 @@ class ABGrid.GridView extends Backbone.View
         if e.which == 27
           # cancel key, should cancel editor if it's active
           if @activeEditor
-            @td.empty()
-            @td.append $(@previousTdHtml)
-            delete @activeEditor
-            @activeEditor = null
-            @focusOnTable()
+            @cancelCurrentEdit()
         else if (e.which == 37)
           unless @activeEditor
             @navigateLeft()
@@ -108,51 +105,33 @@ class ABGrid.GridView extends Backbone.View
             @navigateDown()
         else if (e.which == 9) # tab key pressed
           if @activeEditor
-            value = @activeEditor.serializeValue()
             @tdIdx = @tdIdx + 1
-            if @tdIdx > @colCount
+            if @tdIdx >= @colCount
               @tdIdx = 0
               @trIdx = @trIdx + 1
-            @activeEditor.row.set(@activeEditor.column.get('field'), value)
-            delete @activeEditor
-            @activeEditor = null
-            @focusOnTable()
+              if @trIdx >= @rowCount
+                @trIdx = @rowCount - 1
+                @tdIdx = @colCount - 1
+
+            @commitCurrentEdit()
           else
             @navigateNext()
         else if (e.which == 13)
           # enter key pressed, should activate the editor, or save changes
           # one exception: if the editor is textare which need to absorb
           # enter key, what shall we do?
-          if @activeEditor
-            value = @activeEditor.serializeValue()
-            @activeEditor.row.set(@activeEditor.column.get('field'), value)
-            delete @activeEditor
-            @activeEditor = null
-            @focusOnTable()
-          else
-            if @gridOptions.editable
-              @handleEditable()
-            # if (currentEditor)
-            #   // adding new row
-            #   if (activeRow === getDataLength()) {
-            #     navigateDown();
-            #   }
-            #   else {
-            #     commitEditAndSetFocus();
-            #   }
-            # } else {
-            #   if (getEditorLock().commitCurrentEdit()) {
-            #     makeActiveCellEditable();
-            #   }
-            # }
+          if @gridOptions.editable
+            @handleEditable()
         else
           return
       else if (e.which == 9 && e.shiftKey && !e.ctrlKey && !e.altKey)
         if @activeEditor
-          @td.empty()
-          @td.append $(@previousTdHtml)
-          delete @activeEditor
-          @activeEditor = null
+          if @tdIdx == 0
+            @trIdx = @trIdx - 1
+            @tdIdx = @colCount - 1
+          else
+            @tdIdx = @tdIdx - 1
+          @commitCurrentEdit()
         @navigatePrev()
       else
         return
@@ -162,15 +141,35 @@ class ABGrid.GridView extends Backbone.View
     # try
     #   e.originalEvent.keyCode = 0
     # catch (error)
+  cancelCurrentEdit: =>
+    @td.empty()
+    @td.append $(@previousTdHtml)
+    delete @activeEditor
+    @activeEditor = null
+    @focusOnTable()
+
+  commitCurrentEdit: =>
+    value = @activeEditor.serializeValue()
+    oldValue = @activeEditor.row.get(@activeEditor.column.get('field'))
+    if value == oldValue
+      @cancelCurrentEdit()
+    else
+      @activeEditor.row.set(@activeEditor.column.get('field'), value)
+      delete @activeEditor
+      @activeEditor = null
+      @focusOnTable()
 
   handleEditable: =>
-    column =  @columns.at(@tdIdx - 1)
-    row = @rows.at(@trIdx - 1)
-    @activeEditor = @getEditor(column, row)
-    @previousTdHtml = @td.html()
-    @td.empty()
-    @td.append @activeEditor.el
-    $(@activeEditor.el).select()
+    if @activeEditor
+      @commitCurrentEdit()
+    else
+      column =  @columns.at(@tdIdx)
+      row = @rows.at(@trIdx)
+      @activeEditor = @getEditor(column, row)
+      @previousTdHtml = @td.html()
+      @td.empty()
+      @td.append @activeEditor.el
+      $(@activeEditor.el).select()
 
   getEditor: (column, row) =>
     editView = new ABGrid.EditView {column: column, row: row, parent: @}
@@ -178,38 +177,38 @@ class ABGrid.GridView extends Backbone.View
     editView
 
   navigateRight: ->
-    if !(@trIdx == @rowCount && @tdIdx == @colCount)
+    if !(@trIdx >= (@rowCount - 1) && @tdIdx >= (@colCount - 1) )
       @td.removeClass('active')
-      if @tdIdx < @colCount
+      if @tdIdx < @colCount - 1
         @td.next().addClass('active')
-      else if @tdIdx = @colCount
+      else if @tdIdx = @colCount - 1
         @tr.removeClass('active')
         @tr.next().addClass('active')
         @tr.next().children().first().addClass('active')
 
   navigateLeft: ->
-    if !(@trIdx == 1 && @tdIdx == 1)
+    if !(@trIdx == 0 && @tdIdx == 0)
       @td.removeClass('active')
-      if @tdIdx > 1
+      if @tdIdx > 0
         @td.prev().addClass('active')
-      else if @tdIdx == 1
+      else if @tdIdx == 0
         @tr.removeClass('active')
         @tr.prev().addClass('active')
         @tr.prev().children().last().addClass('active')
 
   navigateUp: ->
-    if @trIdx != 1
+    if @trIdx != 0
       @td.removeClass('active')
       @tr.removeClass('active')
       @tr.prev().addClass('active')
-      @tr.prev().children().eq(@tdIdx-1).addClass('active')
+      @tr.prev().children().eq(@tdIdx).addClass('active')
 
   navigateDown: ->
-    if @trIdx != @rowCount
+    if @trIdx != (@rowCount - 1)
       @td.removeClass('active')
       @tr.removeClass('active')
       @tr.next().addClass('active')
-      @tr.next().children().eq(@tdIdx-1).addClass('active')
+      @tr.next().children().eq(@tdIdx).addClass('active')
 
   navigateNext: ->
     @navigateRight()
@@ -220,10 +219,13 @@ class ABGrid.GridView extends Backbone.View
 class ABGrid.HeadView extends Backbone.View
   tagName: 'tr'
   template: _.template '
-    <th class="abgrid-header"><a class="abgrid-header-link" href="#"><%= name %></a></th>
+    <th class="abgrid-header"><a class="abgrid-header-link" href="#"><%= name %><i class="icon-sort"></i></a></th>
   '
+  events:
+    'click a.abgrid-header-link' : 'sortByHeader'
 
   initialize: (options) =>
+    @rows = options.rows
     @gridOptions = options.gridOptions
     @model.bind 'change', @render
     @model.bind 'add', @render
@@ -234,6 +236,25 @@ class ABGrid.HeadView extends Backbone.View
       # render a column
       $(@el).append @template(column.toJSON())
     @
+
+  sortByHeader: (e) ->
+    i = $(e.target).closest('a').children('i')
+    th = $(e.target).closest('th')
+    tr = $(e.target).closest('tr')
+    thIdx = tr.index(th)
+
+    if i.attr('class') == 'icon-sort'
+      console.log "un-sort"
+      @sortDown()
+    else if i.attr('class') == 'icon-sort-down'
+      console.log "sort-down"
+    else if i.attr('class') == 'icon-sort-down'
+      console.log "sort-up"
+
+  sortDown: =>
+    queryEngine = window.queryEngine
+    result = queryEngine.createCollection(@rows)
+
 class ABGrid.BodyView extends Backbone.View
   tagName: 'tbody'
   initialize: (options) =>
@@ -250,7 +271,7 @@ class ABGrid.BodyView extends Backbone.View
 class ABGrid.RowView extends Backbone.View
   tagName: 'tr'
   template: _.template '
-    <td><%= value %></td>
+    <td width=<%=width %>><%= value %></td>
   '
   events:
     'click td' : 'clickCell'
@@ -260,6 +281,8 @@ class ABGrid.RowView extends Backbone.View
     @gridOptions = options.gridOptions
   render: =>
     rowHtmlArray = []
+    width = (100/@columns.models.length)+'%'
+
     _.each @columns.models, (col) =>
       value = @model.get(col.get('field'))
 
@@ -273,7 +296,7 @@ class ABGrid.RowView extends Backbone.View
       if formatter
         value = formatter(value, col, @model)
 
-      rowHtmlArray.push @template({value: value})
+      rowHtmlArray.push @template({width: width, value: value})
     rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
     $(@el).append rowHtml
     $(@el).attr('id', "r" + @model.cid)
@@ -288,6 +311,7 @@ class ABGrid.RowView extends Backbone.View
 
 class ABGrid.EditView extends Backbone.View
   tagName: 'input'
+  className: 'ab-input ab-textbox'
   events:
     'keydown': 'handleKeyDown'
 
@@ -298,15 +322,19 @@ class ABGrid.EditView extends Backbone.View
   #     - enter key pressed: this shall first set the value back to the model and then inform the parent to remove the editor
   #     - tab key pressed: this is the same with enter key pressed plus inform parent move to next
   handleKeyDown: (e) =>
-    @parent.handleKeypress e
+    handled = e.isImmediatePropagationStopped()
+    if !handled
+      if !e.shiftKey && !e.altKey && !e.ctrlKey
+        if e.which == 27 || e.which == 9 || e.which == 13
+          @parent.handleKeypress e
+      else if e.which == 9 && e.shiftKey && !e.ctrlKey && !e.altKey
+        @parent.handleKeypress e
   initialize: (options) =>
     @column = options.column
     @row = options.row
     @parent = options.parent
 
   render: =>
-    $(@el).css({width: '100%', height: '100%'})
     @
-
   serializeValue: =>
     $(@el).val()
