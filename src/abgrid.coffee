@@ -31,6 +31,7 @@ class ABGrid.GridView extends Backbone.View
     @rows.bind 'remove', @onRowRemoved
 
     @activeEditor = null
+    @activeCell = null
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
     @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
@@ -48,6 +49,7 @@ class ABGrid.GridView extends Backbone.View
     $(gridRow.el).fadeIn()
 
   onRowChanged: (e) =>
+    # note we don't trigger this anymore
     console.log 'row changed'
     console.log @tdIdx
     id = "r" + e.cid
@@ -55,10 +57,6 @@ class ABGrid.GridView extends Backbone.View
     @$('tr#' + id).replaceWith gridRow.render().el
     @$('tr#' + id).effect('highlight', {color: 'yellow'}, 500)
 
-    # restore selection status
-    activeTr = @$('tbody tr').eq(@trIdx)
-    activeTr.addClass('active')
-    activeTr.children().eq(@tdIdx).addClass('active')
     @focusOnTable()
   render: =>
     $(@el).html @template()
@@ -74,13 +72,14 @@ class ABGrid.GridView extends Backbone.View
 
   focusOnTable: (e) =>
     unless @activeEditor
-      console.log document.activeElement
       @$('#focusSink')[0].focus()
       console.log '#focusOnTable'
   setupActiveRowColumnData: =>
+    @td = $(@activeCell.el)
+    @tr = @td.closest('tr')
+
     tbody = @$('tbody')
-    @tr = @$('tr.active')
-    @td = @$('td.active')
+
     @trIdx = tbody.children().index(@tr)
     @tdIdx = @tr.children().index(@td)
     @rowCount = tbody.children().length
@@ -93,8 +92,7 @@ class ABGrid.GridView extends Backbone.View
       @setupActiveRowColumnData()
 
       if (!e.shiftKey && !e.altKey && !e.ctrlKey)
-        if e.which == 27
-          # cancel key, should cancel editor if it's active
+        if e.which == 27 # esc key
           if @activeEditor
             @cancelCurrentEdit()
         else if (e.which == 37)
@@ -109,34 +107,20 @@ class ABGrid.GridView extends Backbone.View
         else if (e.which == 40)
           unless @activeEditor
             @navigateDown()
-        else if (e.which == 9) # tab key pressed
+        else if (e.which == 9) # tab key
           if @activeEditor
-            @tdIdx = @tdIdx + 1
-            if @tdIdx >= @colCount
-              @tdIdx = 0
-              @trIdx = @trIdx + 1
-              if @trIdx >= @rowCount
-                @trIdx = @rowCount - 1
-                @tdIdx = @colCount - 1
-
             @commitCurrentEdit()
-          else
-            @navigateNext()
-        else if (e.which == 13)
-          # enter key pressed, should activate the editor, or save changes
-          # one exception: if the editor is textare which need to absorb
-          # enter key, what shall we do?
+          @navigateNext()
+        else if (e.which == 13) # enter key
           if @gridOptions.editable
-            @handleEditable()
+            if @activeEditor
+              @commitCurrentEdit()
+            else
+              @activateEditor(@activeCell)
         else
           return
       else if (e.which == 9 && e.shiftKey && !e.ctrlKey && !e.altKey)
         if @activeEditor
-          if @tdIdx == 0
-            @trIdx = @trIdx - 1
-            @tdIdx = @colCount - 1
-          else
-            @tdIdx = @tdIdx - 1
           @commitCurrentEdit()
         @navigatePrev()
       else
@@ -147,13 +131,42 @@ class ABGrid.GridView extends Backbone.View
     # try
     #   e.originalEvent.keyCode = 0
     # catch (error)
+
+  activateCell: (cellView) =>
+    # if it's already active, or there's an active editor
+    # then we do nothing
+    unless @activeCell == cellView or @activeEditor
+      $(@activeCell.el).removeClass('active') if @activeCell
+      @activeCell = cellView
+      $(@activeCell.el).addClass('active')
+      @focusOnTable()
+
+  activateEditor: (cellView) =>
+    if @activeEditor
+      if @activeCell == cellView # dbl click on same cell again, do nothing
+        return
+      else
+        @commitCurrentEdit()
+        @createEditor(cellView)
+    else
+      @createEditor(cellView)
+
+  createEditor: (cellView) =>
+    @activateCell(cellView)
+    @activeEditor = @getEditor(cellView.column, cellView.row)
+    # just hide origin content
+    $(cellView.el).children().hide()
+    $(cellView.el).append @activeEditor.el
+    $(@activeEditor.focusElement()).select()
+
   cancelCurrentEdit: =>
     if @activeEditor
-      @td.empty()
-      @td.append $(@previousTdHtml)
+      $(@activeEditor.el).remove()
+      # this td/tr is likly be changed by other method
+      # so we should change to cancel the editor itself
       delete @activeEditor
+      $(@activeCell.el).children().show()
       @activeEditor = null
-      @tr.data('view').editing = false
       @focusOnTable()
 
   commitCurrentEdit: =>
@@ -163,11 +176,11 @@ class ABGrid.GridView extends Backbone.View
       if value == oldValue
         @cancelCurrentEdit()
       else
-        @activeEditor.row.set(@activeEditor.column.get('field'), value)
+        @activeEditor.row.set(@activeEditor.column.get('field'), value, {silent: true})
+        $(@activeEditor.el).remove()
         delete @activeEditor
+        @activeCell.render()
         @activeEditor = null
-        if @tr.data('view')
-          @tr.data('view').editing = false
         @focusOnTable()
 
   handleEditable: =>
@@ -181,6 +194,7 @@ class ABGrid.GridView extends Backbone.View
       @td.empty()
       @td.append @activeEditor.el
       @tr.data('view').editing = true
+      @tr.data('view').editingColumn = column
       $(@activeEditor.focusElement()).select()
 
   getEditor: (column, row) =>
@@ -190,37 +204,29 @@ class ABGrid.GridView extends Backbone.View
 
   navigateRight: ->
     if !(@trIdx >= (@rowCount - 1) && @tdIdx >= (@colCount - 1) )
-      @td.removeClass('active')
       if @tdIdx < @colCount - 1
-        @td.next().addClass('active')
+        cell = $(@td.next()).data('cell')
       else if @tdIdx = @colCount - 1
-        @tr.removeClass('active')
-        @tr.next().addClass('active')
-        @tr.next().children().first().addClass('active')
+        cell = $(@tr.next().children().first()).data('cell')
+      @activateCell(cell)
 
   navigateLeft: ->
     if !(@trIdx == 0 && @tdIdx == 0)
-      @td.removeClass('active')
       if @tdIdx > 0
-        @td.prev().addClass('active')
+        cell = @td.prev().data('cell')
       else if @tdIdx == 0
-        @tr.removeClass('active')
-        @tr.prev().addClass('active')
-        @tr.prev().children().last().addClass('active')
+        cell = @tr.prev().children().last().data('cell')
+      @activateCell(cell)
 
   navigateUp: ->
     if @trIdx != 0
-      @td.removeClass('active')
-      @tr.removeClass('active')
-      @tr.prev().addClass('active')
-      @tr.prev().children().eq(@tdIdx).addClass('active')
+      cell = @tr.prev().children().eq(@tdIdx).data('cell')
+      @activateCell(cell)
 
   navigateDown: ->
     if @trIdx != (@rowCount - 1)
-      @td.removeClass('active')
-      @tr.removeClass('active')
-      @tr.next().addClass('active')
-      @tr.next().children().eq(@tdIdx).addClass('active')
+      cell = @tr.next().children().eq(@tdIdx).data('cell')
+      @activateCell(cell)
 
   navigateNext: ->
     @navigateRight()
@@ -283,42 +289,29 @@ class ABGrid.BodyView extends Backbone.View
 
 class ABGrid.RowView extends Backbone.View
   tagName: 'tr'
-  template: _.template '
-    <td width=<%=width %>><%= value %></td>
-  '
-  events:
-    'click td' : 'clickCell'
-    'dblclick td': 'onDblClickCell'
+  # events:
+  #   'click td' : 'clickCell'
+  #   'dblclick td': 'onDblClickCell'
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
     @parent = options.parent
     @editing = false
+    @editingColumn = null
   render: =>
-    rowHtmlArray = []
     width = (100/@columns.models.length)+'%'
+    _.each @columns.models, (column) =>
+      cellView = new ABGrid.CellView {column: column, row: @model, width: width, parent: @parent}
+      $(@el).append cellView.render().el
 
-    _.each @columns.models, (col) =>
-      value = @model.get(col.get('field'))
-
-      # cell formatter here
-      formatter = null
-      if col.get('formatter')
-        formatter = col.get('formatter')
-      else if @gridOptions.formatterFactory
-        formatter = @gridOptions.formatterFactory.getFormatter(col)
-
-      if formatter
-        value = formatter(value, col, @model)
-
-      rowHtmlArray.push @template({width: width, value: value})
-    rowHtml = rowHtmlArray.join '' # <td>a</td><td>b</td>
-    $(@el).append rowHtml
     $(@el).attr('id', "r" + @model.cid)
+    # append self to DOM for later use
     $(@el).data('view', @)
     @
   clickCell: (e) ->
+    console.log "RowView#click"
     unless @editing
+      console.log "RowView#click#not editing"
       @parent.focusOnTable(e)
       @parent.commitCurrentEdit()
       $(@.el).parent().find('tr').removeClass('active')
@@ -326,11 +319,67 @@ class ABGrid.RowView extends Backbone.View
       $(e.target).closest('td').addClass('active')
       $(e.target).closest('tr').addClass('active')
 
+
   onDblClickCell: (e) ->
-    unless @editing
+    console.log "RowView#dblclick"
+    if @editing
+      console.log "RowView#dblclick is editing"
+      td = $(e.target).closest('td')
+      tr = td.closest('tr')
+      idx = tr.children().index(td)
+      col = @columns.at(idx)
+      if col == @editingColumn
+        console.log "RowView#dblclick on same col"
+        return
+      else
+        console.log "RowView#dlbclick on new col"
+        @parent.commitCurrentEdit()
+        $(@.el).parent().find('tr').removeClass('active')
+        $(@.el).parent().find('td').removeClass('active')
+        $(e.target).closest('td').addClass('active')
+        $(e.target).closest('tr').addClass('active')
+        @parent.setupActiveRowColumnData()
+        @parent.handleEditable()
+    else
+      console.log "RowView#dblclick not editing"
+      @parent.setupActiveRowColumnData()
+      @parent.handleEditable()
       $(@.el).parent().find('tr').removeClass('active')
       $(@.el).parent().find('td').removeClass('active')
       $(e.target).closest('td').addClass('active')
       $(e.target).closest('tr').addClass('active')
-      @parent.setupActiveRowColumnData()
-      @parent.handleEditable()
+    if @parent.td == []
+      console.log "parent td empty...."
+
+class ABGrid.CellView extends Backbone.View
+  tagName: 'td'
+  events:
+    'click': 'onClickCell'
+    'dblclick': 'onDblClickCell'
+  initialize: (options) =>
+    @column = options.column
+    @row = options.row
+    @parent = options.parent
+    @getFormatter()
+
+  getFormatter: =>
+    @formatter = null
+    if @column.get('formatter')
+      @formatter = @column.get('formatter')
+    else if @parent.gridOptions.formatterFactory
+      @formatter = @parent.gridOptions.formatterFactory.getFormatter(@column)
+
+  render: =>
+    value = @row.get @column.get('field')
+    if @formatter
+      value = @formatter(value, @column, @row)
+
+    $(@el).append value
+    # append self to DOM for later use
+    $(@el).data('cell', @)
+    @
+
+  onClickCell: (e) =>
+    @parent.activateCell(@)
+  onDblClickCell: (e) =>
+    @parent.activateEditor(@)
