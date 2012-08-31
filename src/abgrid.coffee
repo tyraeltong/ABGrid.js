@@ -10,7 +10,8 @@ class ABGrid.GridView extends Backbone.View
     '
 
   events:
-#    'click table.abgrid' : 'focusOnTable'
+    'click table.abgrid' : 'handleClick'
+    'dblclick table.abgrid' : 'handleDblClick'
     'keydown #focusSink' : 'handleKeypress'
     'focusout table.abgrid' : "onFocusOutFromGrid"
   defaultGridOptions:
@@ -22,6 +23,18 @@ class ABGrid.GridView extends Backbone.View
     editable: true
     enableAddRow: false
     enableDeleteRow: false
+
+  handleClick: (e) =>
+    cell = @getCellFromEvent e
+    if cell
+      cellView = $(cell).data('cell')
+      @activateCell cellView if cellView
+
+  handleDblClick: (e) =>
+    cell = @getCellFromEvent e
+    if cell
+      cellView = $(cell).data('cell')
+      @activateEditor cellView if cellView
 
   initialize: (options) =>
     @columns = options.columns # should be a Backbone.Collection
@@ -37,6 +50,7 @@ class ABGrid.GridView extends Backbone.View
     @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions, parent: @}
 
+  # model change event handlers
   onRowRemoved: (e) =>
     id = "r" + e.cid
     elem = @$('tr#' + id)
@@ -58,6 +72,7 @@ class ABGrid.GridView extends Backbone.View
     @$('tr#' + id).effect('highlight', {color: 'yellow'}, 500)
 
     @focusOnTable()
+
   render: =>
     $(@el).html @template()
 
@@ -66,6 +81,13 @@ class ABGrid.GridView extends Backbone.View
     @bodyView.render()
     @$('table').append @bodyView.el
     @
+
+  getCellFromEvent: (e) =>
+    cell = $(e.target).closest('.ab-cell')
+    if !cell.length
+      return null
+    else
+      return cell[0]
 
   onFocusOutFromGrid: (e) =>
     #@commitCurrentEdit()
@@ -289,18 +311,18 @@ class ABGrid.BodyView extends Backbone.View
 
 class ABGrid.RowView extends Backbone.View
   tagName: 'tr'
-  # events:
-  #   'click td' : 'clickCell'
-  #   'dblclick td': 'onDblClickCell'
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
     @parent = options.parent
-    @editing = false
-    @editingColumn = null
   render: =>
     width = (100/@columns.models.length)+'%'
     _.each @columns.models, (column) =>
+      if column.width
+        columnWidth = column.width
+      else
+        columnWidth = width
+
       cellView = new ABGrid.CellView {column: column, row: @model, width: width, parent: @parent}
       $(@el).append cellView.render().el
 
@@ -308,59 +330,16 @@ class ABGrid.RowView extends Backbone.View
     # append self to DOM for later use
     $(@el).data('view', @)
     @
-  clickCell: (e) ->
-    console.log "RowView#click"
-    unless @editing
-      console.log "RowView#click#not editing"
-      @parent.focusOnTable(e)
-      @parent.commitCurrentEdit()
-      $(@.el).parent().find('tr').removeClass('active')
-      $(@.el).parent().find('td').removeClass('active')
-      $(e.target).closest('td').addClass('active')
-      $(e.target).closest('tr').addClass('active')
-
-
-  onDblClickCell: (e) ->
-    console.log "RowView#dblclick"
-    if @editing
-      console.log "RowView#dblclick is editing"
-      td = $(e.target).closest('td')
-      tr = td.closest('tr')
-      idx = tr.children().index(td)
-      col = @columns.at(idx)
-      if col == @editingColumn
-        console.log "RowView#dblclick on same col"
-        return
-      else
-        console.log "RowView#dlbclick on new col"
-        @parent.commitCurrentEdit()
-        $(@.el).parent().find('tr').removeClass('active')
-        $(@.el).parent().find('td').removeClass('active')
-        $(e.target).closest('td').addClass('active')
-        $(e.target).closest('tr').addClass('active')
-        @parent.setupActiveRowColumnData()
-        @parent.handleEditable()
-    else
-      console.log "RowView#dblclick not editing"
-      @parent.setupActiveRowColumnData()
-      @parent.handleEditable()
-      $(@.el).parent().find('tr').removeClass('active')
-      $(@.el).parent().find('td').removeClass('active')
-      $(e.target).closest('td').addClass('active')
-      $(e.target).closest('tr').addClass('active')
-    if @parent.td == []
-      console.log "parent td empty...."
 
 class ABGrid.CellView extends Backbone.View
   tagName: 'td'
-  events:
-    'click': 'onClickCell'
-    'dblclick': 'onDblClickCell'
+  className: 'ab-cell'
   initialize: (options) =>
     @column = options.column
     @row = options.row
     @parent = options.parent
     @getFormatter()
+    @width = options.width
 
   getFormatter: =>
     @formatter = null
@@ -375,11 +354,7 @@ class ABGrid.CellView extends Backbone.View
       value = @formatter(value, @column, @row)
 
     $(@el).append value
+    $(@el).css {width: @width}
     # append self to DOM for later use
     $(@el).data('cell', @)
     @
-
-  onClickCell: (e) =>
-    @parent.activateCell(@)
-  onDblClickCell: (e) =>
-    @parent.activateEditor(@)
