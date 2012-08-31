@@ -12,7 +12,7 @@ class ABGrid.GridView extends Backbone.View
   events:
     'click table.abgrid' : 'focusOnTable'
     'keydown #focusSink' : 'handleKeypress'
-
+    'focusout table.abgrid' : "onFocusOutFromGrid"
   defaultGridOptions:
     enableSorting: true
     enablePaging: true
@@ -34,7 +34,7 @@ class ABGrid.GridView extends Backbone.View
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
     @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
-    @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
+    @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions, parent: @}
 
   onRowRemoved: (e) =>
     id = "r" + e.cid
@@ -42,7 +42,7 @@ class ABGrid.GridView extends Backbone.View
     elem.fadeOut()
 
   onRowAdded: (e) =>
-    gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions}
+    gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions, parent: @}
     gridRow.render()
     @$('tbody').append $(gridRow.el).hide()
     $(gridRow.el).fadeIn()
@@ -51,7 +51,7 @@ class ABGrid.GridView extends Backbone.View
     console.log 'row changed'
     console.log @tdIdx
     id = "r" + e.cid
-    gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions}
+    gridRow = new ABGrid.RowView {model: e, columns: @columns, gridOptions: @gridOptions, parent: @}
     @$('tr#' + id).replaceWith gridRow.render().el
     @$('tr#' + id).effect('highlight', {color: 'yellow'}, 500)
 
@@ -69,22 +69,26 @@ class ABGrid.GridView extends Backbone.View
     @$('table').append @bodyView.el
     @
 
+  onFocusOutFromGrid: (e) =>
+    @commitCurrentEdit()
+
   focusOnTable: (e) =>
     unless @activeEditor
       @$('#focusSink')[0].focus()
       console.log '#focusOnTable'
-
+  setupActiveRowColumnData: =>
+    tbody = @$('tbody')
+    @tr = @$('tr.active')
+    @td = @$('td.active')
+    @trIdx = tbody.children().index(@tr)
+    @tdIdx = @tr.children().index(@td)
+    @rowCount = tbody.children().length
+    @colCount = @tr.children().length
   handleKeypress: (e) =>
     handled = e.isImmediatePropagationStopped()
 
     if (!handled)
-      tbody = @$('tbody')
-      @tr = @$('tr.active')
-      @td = @$('td.active')
-      @trIdx = tbody.children().index(@tr)
-      @tdIdx = @tr.children().index(@td)
-      @rowCount = tbody.children().length
-      @colCount = @tr.children().length
+      @setupActiveRowColumnData()
 
       if (!e.shiftKey && !e.altKey && !e.ctrlKey)
         if e.which == 27
@@ -142,22 +146,24 @@ class ABGrid.GridView extends Backbone.View
     #   e.originalEvent.keyCode = 0
     # catch (error)
   cancelCurrentEdit: =>
-    @td.empty()
-    @td.append $(@previousTdHtml)
-    delete @activeEditor
-    @activeEditor = null
-    @focusOnTable()
-
-  commitCurrentEdit: =>
-    value = @activeEditor.serializeValue()
-    oldValue = @activeEditor.row.get(@activeEditor.column.get('field'))
-    if value == oldValue
-      @cancelCurrentEdit()
-    else
-      @activeEditor.row.set(@activeEditor.column.get('field'), value)
+    if @activeEditor
+      @td.empty()
+      @td.append $(@previousTdHtml)
       delete @activeEditor
       @activeEditor = null
       @focusOnTable()
+
+  commitCurrentEdit: =>
+    if @activeEditor
+      value = @activeEditor.serializeValue()
+      oldValue = @activeEditor.row.get(@activeEditor.column.get('field'))
+      if value == oldValue
+        @cancelCurrentEdit()
+      else
+        @activeEditor.row.set(@activeEditor.column.get('field'), value)
+        delete @activeEditor
+        @activeEditor = null
+        @focusOnTable()
 
   handleEditable: =>
     if @activeEditor
@@ -260,10 +266,11 @@ class ABGrid.BodyView extends Backbone.View
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
+    @parent = options.parent
   render: =>
     $(@el).empty()
     _.each @model.models, (row) =>
-      rowView = new ABGrid.RowView({model: row, columns: @columns, gridOptions: @gridOptions})
+      rowView = new ABGrid.RowView({model: row, columns: @columns, gridOptions: @gridOptions, parent: @parent})
       rowView.render()
       $(@el).append rowView.el
     @
@@ -275,10 +282,11 @@ class ABGrid.RowView extends Backbone.View
   '
   events:
     'click td' : 'clickCell'
-
+    'dblclick td': 'onDblClickCell'
   initialize: (options) =>
     @columns = options.columns
     @gridOptions = options.gridOptions
+    @parent = options.parent
   render: =>
     rowHtmlArray = []
     width = (100/@columns.models.length)+'%'
@@ -302,11 +310,19 @@ class ABGrid.RowView extends Backbone.View
     $(@el).attr('id', "r" + @model.cid)
     @
   clickCell: (e) ->
+    @parent.commitCurrentEdit()
     $(@.el).parent().find('tr').removeClass('active')
     $(@.el).parent().find('td').removeClass('active')
     $(e.target).closest('td').addClass('active')
     $(e.target).closest('tr').addClass('active')
 
+  onDblClickCell: (e) ->
+    $(@.el).parent().find('tr').removeClass('active')
+    $(@.el).parent().find('td').removeClass('active')
+    $(e.target).closest('td').addClass('active')
+    $(e.target).closest('tr').addClass('active')
+    @parent.setupActiveRowColumnData()
+    @parent.handleEditable()
   getEditor: (column) ->
 
 class ABGrid.EditView extends Backbone.View
@@ -335,6 +351,7 @@ class ABGrid.EditView extends Backbone.View
     @parent = options.parent
 
   render: =>
+    $(@el).val(@row.get(@column.get('field')))
     @
   serializeValue: =>
     $(@el).val()
