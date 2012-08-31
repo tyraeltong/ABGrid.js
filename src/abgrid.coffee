@@ -30,6 +30,7 @@ class ABGrid.GridView extends Backbone.View
     @rows.bind 'add', @onRowAdded
     @rows.bind 'remove', @onRowRemoved
 
+    @activeEditor = null
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
 
     @headView = new ABGrid.HeadView {model: @columns, rows: @rows, gridOptions: @gridOptions}
@@ -61,7 +62,9 @@ class ABGrid.GridView extends Backbone.View
     @
 
   focusOnTable: (e) =>
-    @$('#focusSink')[0].focus()
+    unless @activeEditor
+      @$('#focusSink')[0].focus()
+      console.log '#focusOnTable'
 
   handleKeypress: (e) =>
     handled = e.isImmediatePropagationStopped()
@@ -76,7 +79,14 @@ class ABGrid.GridView extends Backbone.View
       @colCount = @tr.children().length
 
       if (!e.shiftKey && !e.altKey && !e.ctrlKey)
-        if (e.which == 27)
+        if e.which == 27
+          # cancel key, should cancel editor if it's active
+          if @activeEditor
+            @td.empty()
+            @td.append $(@previousTdHtml)
+            delete @activeEditor
+            @activeEditor = null
+            @focusOnTable()
           # if (!getEditorLock().isActive())
           #   return
           # }
@@ -92,8 +102,11 @@ class ABGrid.GridView extends Backbone.View
         else if (e.which == 9)
           @navigateNext()
         else if (e.which == 13)
-          if (@gridOptions.editable)
-            console.log "yes"
+          # enter key pressed, should activate the editor, or save changes
+          # one exception: if the editor is textare which need to absorb
+          # enter key, what shall we do?
+          if @gridOptions.editable
+            @handleEditable()
             # if (currentEditor)
             #   // adding new row
             #   if (activeRow === getDataLength()) {
@@ -119,6 +132,19 @@ class ABGrid.GridView extends Backbone.View
     # try
     #   e.originalEvent.keyCode = 0
     # catch (error)
+
+  handleEditable: =>
+    column =  @columns.at(@tdIdx)
+    row = @rows.at(@trIdx)
+    @activeEditor = @getEditor(column, row)
+    @previousTdHtml = @td.html()
+    @td.empty()
+    @td.append @activeEditor.el
+    $(@activeEditor.el).select()
+  getEditor: (column, row) =>
+    editView = new ABGrid.EditView {column: column, row: row, parent: @}
+    editView.render()
+    editView
 
   navigateRight: ->
     if !(@trIdx == @rowCount && @tdIdx == @colCount)
@@ -249,4 +275,24 @@ class ABGrid.RowView extends Backbone.View
     $(e.target).closest('td').addClass('active')
     $(e.target).closest('tr').addClass('active')
 
+  getEditor: (column) ->
+
 class ABGrid.EditView extends Backbone.View
+  tagName: 'input'
+  events:
+    'keydown': 'handleKeyDown'
+  handleKeyDown: (e) =>
+    handled = e.isImmediatePropagationStopped()
+    if !handled
+      if (!e.shiftKey && !e.altKey && !e.ctrlKey)
+        if e.which == 27 or e.which == 13
+          console.log "let parent handle this."
+          @parent.handleKeypress e
+  initialize: (options) =>
+    @column = options.column
+    @row = options.row
+    @parent = options.parent
+
+  render: =>
+    $(@el).css({width: '100%', height: '100%'})
+    @
