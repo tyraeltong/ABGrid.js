@@ -8,12 +8,14 @@ class ABGrid.GridView extends Backbone.View
       <thead></thead>
     </table>
     '
-  
+
   events:
     'click table.abgrid' : 'focusOnTable'
     'keydown #focusSink' : 'handleKeypress'
 
   defaultGridOptions:
+    enableSorting: true
+    enablePaging: true
     enableColumnReorder: false
     enableRowReordering: false
     enableCellNavigation: true
@@ -29,6 +31,10 @@ class ABGrid.GridView extends Backbone.View
     @rows.bind 'remove', @onRowRemoved
 
     @gridOptions = $.extend {}, @defaultGridOptions, options.gridOptions
+
+    if @gridOptions.enablePaging || @gridOptions.enableSorting
+      unless @rows instanceof Backbone.QueryCollection
+        throw 'you must use Backbone.QueryCollection for sorting or paging'
 
     @headView = new ABGrid.HeadView {model: @columns, gridOptions: @gridOptions}
     @bodyView = new ABGrid.BodyView {model: @rows, columns: @columns, gridOptions: @gridOptions}
